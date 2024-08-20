@@ -1,0 +1,130 @@
+#!/bin/bash
+
+PURPLE='0;35'
+NC='\033[0m' 
+VERSAO=11
+
+echo  "$(tput setaf 10)[Bot assistant]:$(tput setaf 7) Olá Cliente, serei seu assistente para instalação do Java!;"
+echo  "$(tput setaf 10)[Bot assistant]:$(tput setaf 7)  Verificando aqui se você possui o Java instalado...;"
+sleep 2
+
+java -version
+if [ $? -eq 0 ]
+then
+    echo "$(tput setaf 10)[Bot assistant]:$(tput setaf 7) Você já tem o java instalado!!!"
+else
+    echo "$(tput setaf 10)[Bot assistant]:$(tput setaf 7) Opa! Não identifiquei nenhuma versão do Java instalado, mas sem problemas, irei resolver isso agora!"
+    echo "$(tput setaf 10)[Bot assistant]:$(tput setaf 7) Confirme para mim se realmente deseja instalar o Java (S/N)?"
+    read inst
+    if [ \"$inst\" == \"S\" ]
+    then
+        echo "$(tput setaf 10)[Bot assistant]:$(tput setaf 7) Ok! Você escolheu instalar o Java ;D"
+        echo "$(tput setaf 10)[Bot assistant]:$(tput setaf 7) Adicionando o repositório!"
+        sleep 2
+        sudo add-apt-repository ppa:webupd8team/java -y
+        clear
+        echo "$(tput setaf 10)[Bot assistant]:$(tput setaf 7) Atualizando! Quase lá."
+        sleep 2
+        sudo apt update -y
+        clear
+        
+        if [ $VERSAO -eq 11 ]
+        then
+            echo "$(tput setaf 10)[Bot assistant]:$(tput setaf 7) Preparando para instalar a versão 11 do Java. Confirme a instalação quando solicitado ;D"
+            sudo apt install default-jre ; apt install openjdk-11-jre-headless -y
+            clear
+            echo "$(tput setaf 10)[Bot assistant]:$(tput setaf 7) Java instalado com sucesso!"
+        fi
+    else 	
+        echo "$(tput setaf 10)[Bot assistant]:$(tput setaf 7) Você optou por não instalar o Java por enquanto, até a próxima então!"
+    fi
+fi
+
+# Verificar se o Docker está instalado
+if ! [ -x "$(command -v docker)" ]; then
+  echo "$(tput setaf 10)[Bot assistant]:$(tput setaf 7) Docker não está instalado. Instalando Docker..."
+  sudo apt-get update
+  sudo apt-get install -y apt-transport-https ca-certificates curl software-properties-common
+  curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+  sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
+  sudo apt-get update
+  sudo apt-get install -y docker-ce
+  sudo usermod -aG docker ${USER}
+  su - ${USER}
+fi
+
+# Verificar se o Docker Compose está instalado
+if ! [ -x "$(command -v docker-compose)" ]; then
+  echo "$(tput setaf 10)[Bot assistant]:$(tput setaf 7) Docker Compose não está instalado. Instalando Docker Compose..."
+  sudo curl -L "https://github.com/docker/compose/releases/download/v2.23.0/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+  sudo chmod +x /usr/local/bin/docker-compose
+fi
+
+
+#criar diretório para yml
+mkdir dockerCompose
+
+#ir para o diretório
+cd dockerCompose
+
+
+# Clone the GitHub repository
+echo "$(tput setaf 10)[Bot assistant]:$(tput setaf 7) Clonando o repositório do GitHub..."
+git clone https://github.com/ViaTechSP/java-viatech.git
+
+
+
+# Create the docker-compose.yml file
+echo "$(tput setaf 10)[Bot assistant]:$(tput setaf 7) Criando o arquivo docker-compose.yml..."
+cat <<EOL > docker-compose.yml
+version: '3.3'
+services:
+  mysql:
+    container_name: containerViatech
+    image: mysql:5.7
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: urubu100
+      MYSQL_DATABASE: viatech
+    volumes:
+      - ./init-scripts:/docker-entrypoint-initdb.d
+    ports:
+      - "3306:3306"
+  java:
+    image: openjdk:11
+    container_name: javaViatech
+    depends_on:
+      - mysql
+    volumes:
+      - ./java-viatech/out/artifacts/java_viatech_jar:/usr/src/myapp
+    working_dir: /usr/src/myapp
+    command: ["java", "-jar", "java-viatech.jar"]
+EOL
+
+# Create init-scripts directory and move the init.sql file
+echo "$(tput setaf 10)[Bot assistant]:$(tput setaf 7) Criando o diretório init-scripts e movendo o arquivo init.sql..."
+mkdir -p init-scripts
+cp java-viatech/out/artifacts/java_viatech_jar/init.sql init-scripts/
+
+# Start Docker Compose
+echo "$(tput setaf 10)[Bot assistant]:$(tput setaf 7) Iniciando o Docker Compose..."
+sudo docker-compose up -d
+
+
+#ir para o diretório do jar
+cd java-viatech/out/artifacts/java_viatech_jar
+
+
+# Perguntar ao usuário se ele deseja executar o JAR
+echo "$(tput setaf 10)[Bot assistant]:$(tput setaf 7) Deseja executar o arquivo JAR agora (S/N)?"
+read exec_jar
+
+if [ \"$exec_jar\" == \"S\" ]
+then
+  echo "$(tput setaf 10)[Bot assistant]:$(tput setaf 7) Executando o arquivo JAR..."
+  sudo docker-compose exec java java -jar java-viatech.jar
+else
+  echo "$(tput setaf 10)[Bot assistant]:$(tput setaf 7) Você optou por não executar o JAR agora. Até a próxima!"
+fi
+
+echo "$(tput setaf 10)[Bot assistant]:$(tput setaf 7) Instalação concluída!"

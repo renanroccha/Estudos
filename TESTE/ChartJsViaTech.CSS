@@ -1,0 +1,104 @@
+.grafico1{
+    background-color: transparent;
+    width: 400px;
+    height: 200px;margin-left: 10px;
+    margin-top: -250px;
+    
+
+}
+
+.grafico2{
+    background-color: transparent;
+    width: 400px;
+    height: 200px;
+    margin-right: 10px;
+    margin-top: -250px;
+}
+
+.grafico3{
+    background-color: transparent;
+    width: 400px;
+    height: 200px;
+    margin-top: 30px;
+    
+
+}
+
+
+.grafico4{
+    background-color: transparent;
+    width: 400px;
+    height: 200px;
+    margin-top: 30px;
+    
+
+}
+
+
+.disco{
+  margin-right: 450px;
+}
+
+.cpu{
+    margin-left: 410px;
+    margin-top: -54px;
+}
+
+.ram{
+    margin-top: 10px;
+    
+}
+
+.temperatura{
+    margin-top: 10px;
+}
+
+h1{
+    color: aliceblue;
+    font-family: Verdana, Geneva, Tahoma, sans-serif;
+    font-size: 30px;
+}
+
+.separador {
+    border-right: 1px solid #ddd; /* Cor e espessura da borda */
+    height: 500px; /* Altura igual à dos gráficos */
+    margin-right: 20px; /* Espaçamento entre os gráficos */
+    margin-top: -50px;
+    padding-right: 20px; /* Espaçamento interno à direita da borda */
+    display: inline-block; /* Para ocupar apenas o espaço necessário */
+  }
+
+.quadrado{
+    display: inline-block;
+    background-color: #011640;
+    width: 870px;
+    height: 600px;
+    margin-top: 100px;
+    border-radius: 15px;
+    margin-left: 650px;
+}
+
+.conteiner{
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+
+}
+
+.fundo{
+    display: flex;
+    align-items: center;
+    text-align: center;
+    justify-content: center;
+    flex-direction: column;
+    background-color: rgb(182, 183, 187);
+    background-size: cover;
+
+}
+
+.titulo{
+    font-family: 'Noto Serif', serif;
+    color: aliceblue;
+   
+
+}

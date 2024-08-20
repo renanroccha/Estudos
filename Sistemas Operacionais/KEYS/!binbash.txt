@@ -1,0 +1,211 @@
+#!/bin/bash
+
+# Define colors
+PURPLE='\033[0;35m'
+NC='\033[0m' 
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+YELLOW='\033[0;33m'
+CYAN='\033[0;36m'
+
+VERSAO=17
+
+# Helper function for displaying messages
+bot_message() {
+    echo -e "${CYAN}[Bot assistant]${NC}: $1"
+}
+
+bot_success() {
+    echo -e "${GREEN}[Bot assistant]${NC}: $1"
+}
+
+bot_warning() {
+    echo -e "${YELLOW}[Bot assistant]${NC}: $1"
+}
+
+bot_error() {
+    echo -e "${RED}[Bot assistant]${NC}: $1"
+}
+
+# Display a progress bar
+progress_bar() {
+    echo -n "["
+    for i in $(seq 1 $1); do
+        echo -n "#"
+        sleep 0.1
+    done
+    for i in $(seq 1 $((5 - $1))); do
+        echo -n " "
+    done
+    echo -n "]"
+    echo
+}
+
+clear
+bot_message "Olá Cliente, serei seu assistente para instalação do Java!"
+
+bot_message "Verificando aqui se você possui o Java instalado..."
+sleep 2
+
+java -version
+if [ $? -eq 0 ]; then
+    bot_success "Você já tem o Java instalado!!!"
+else
+    bot_warning "Opa! Não identifiquei nenhuma versão do Java instalado, mas sem problemas, irei resolver isso agora!"
+    bot_message "Confirme para mim se realmente deseja instalar o Java (S/N)?"
+    read inst
+    if [ "$inst" == "S" ]; then
+        bot_message "Ok! Você escolheu instalar o Java ;D"
+        bot_message "Adicionando o repositório!"
+        progress_bar 5
+        sudo add-apt-repository ppa:linuxuprising/java -y
+        clear
+        bot_message "Atualizando! Quase lá."
+        progress_bar 10
+        sudo apt update -y
+        clear
+        
+        if [ $VERSAO -eq 17 ]; then
+            bot_message "Preparando para instalar a versão 17 do Java. Confirme a instalação quando solicitado ;D"
+            sudo apt install -y openjdk-17-jdk
+            clear
+            bot_success "Java instalado com sucesso!"
+        fi
+    else 	
+        bot_warning "Você optou por não instalar o Java por enquanto, até a próxima então!"
+        exit 0
+    fi
+fi
+
+# Verificar se o Docker está instalado
+if ! [ -x "$(command -v docker)" ]; then
+    bot_warning "Docker não está instalado. Instalando Docker..."
+    progress_bar 3
+    sudo apt-get update
+    sudo apt-get install -y apt-transport-https ca-certificates curl software-properties-common
+    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+    sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
+    sudo apt-get update
+    sudo apt-get install -y docker-ce
+fi
+
+# Verificar se o Docker Compose está instalado
+if ! [ -x "$(command -v docker-compose)" ]; then
+    bot_warning "Docker Compose não está instalado. Instalando Docker Compose..."
+    progress_bar 3
+    sudo curl -L "https://github.com/docker/compose/releases/download/v2.23.0/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+    sudo chmod +x /usr/local/bin/docker-compose
+    clear
+fi
+
+# Verificar se o Maven está instalado
+if ! [ -x "$(command -v mvn)" ]; then
+    bot_warning "Maven não está instalado. Instalando Maven..."
+    progress_bar 3
+    sudo apt-get install -y maven
+    clear
+fi
+
+# Criar diretório para yml
+mkdir -p dockerCompose
+
+# Ir para o diretório
+cd dockerCompose
+
+# Clone the GitHub repository
+bot_message "Clonando o repositório do GitHub..."
+progress_bar 5
+git clone "https://github.com/ViaTechSP/java-viatech.git"
+clear
+
+
+# Construir o projeto usando Maven
+bot_message "Construindo o projeto Maven..."
+progress_bar 5
+cd java-viatech
+mvn clean install
+
+# Verificar se o JAR foi criado corretamente
+if [ ! -f "target/java-viatech-1.0-SNAPSHOT-jar-with-dependencies.jar" ]; then
+    bot_error "Erro: O arquivo JAR não foi encontrado após a construção do Maven."
+    exit 1
+fi
+
+# Voltar para o diretório dockerCompose
+cd ..
+
+
+# Create the docker-compose.yml file
+bot_message "Criando o arquivo docker-compose.yml..."
+progress_bar 3
+cat <<EOL > docker-compose.yml
+version: '3.3'
+services:
+  mysql:
+    container_name: containerViatech
+    image: mysql:5.7
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: urubu100
+      MYSQL_DATABASE: viatech
+    volumes:
+      - ./init-scripts:/docker-entrypoint-initdb.d
+    ports:
+      - "3306:3306"
+  java:
+    image: openjdk:17
+    container_name: javaViatech
+    depends_on:
+      - mysql
+    volumes:
+      - ./java-viatech/target:/usr/src/myapp
+    working_dir: /usr/src/myapp
+    command: ["java", "-jar", "java-viatech-1.0-SNAPSHOT-jar-with-dependencies.jar"]   
+EOL
+
+# Create init-scripts directory and move the init.sql file
+bot_message "Criando o diretório init-scripts e movendo o arquivo init.sql..."
+progress_bar 3
+mkdir -p init-scripts
+cp java-viatech/out/artifacts/java_viatech_jar/init.sql init-scripts/
+
+# Start Docker
+bot_message "Iniciando o Docker ..."
+sudo systemctl start docker
+
+# Start Docker Compose
+bot_message "Iniciando o Docker Compose..."
+progress_bar 5
+sudo docker-compose up -d
+
+# Adicionar um sleep para dar tempo ao Docker Compose de iniciar os containers
+bot_message "Aguardando os containers iniciarem..."
+progress_bar 5
+sleep 5
+
+# Verificar se os containers estão em execução
+if [ "$(sudo docker inspect -f '{{.State.Running}}' javaViatech)" == "true" ]; then
+    bot_success "Todos os containers estão em execução."
+else
+    bot_error "O container Java não está em execução. Verifique os logs para mais detalhes."
+    sudo docker-compose logs
+    exit 1
+fi
+
+# Perguntar ao usuário se ele deseja executar o JAR
+bot_message "Deseja executar o arquivo JAR agora (S/N)?"
+read exec_jar
+
+if [ "$exec_jar" == "S" ]; then
+    bot_message "Executando o arquivo JAR..."
+    sudo docker-compose exec java java -jar java-viatech-1.0-SNAPSHOT-jar-with-dependencies.jar
+else
+    bot_warning "Você optou por não executar o JAR agora. Até a próxima!"
+fi
+
+# Adicionar alias ao arquivo .bashrc
+bot_message "Adicionando alias para facilitar a execução do JAR..."
+echo "alias executar='sudo docker-compose exec java java -jar java-viatech-1.0-SNAPSHOT-jar-with-dependencies.jar'" >> ~/.bashrc
+source ~/.bashrc
+
+bot_success "Instalação concluída!"
